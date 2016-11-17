@@ -14,7 +14,7 @@ data =
 chart : Svg.Svg a
 chart =
     plot
-        [ size ( 600, 250 ) ]
+        [ size ( 600, 250 ), plotSvgAttrs [] ]
         [ area [ areaStyle [ ( "stroke", Colors.blueStroke ), ( "fill", Colors.blueFill ) ] ] data
         , xAxis [ axisStyle [ ( "stroke", Colors.axisColor ) ] ]
         ]

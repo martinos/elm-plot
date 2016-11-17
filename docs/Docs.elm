@@ -5,6 +5,9 @@ import Html.Attributes exposing (style, src, href, class)
 import Html.Events exposing (onClick)
 import Svg
 import Svg.Attributes
+import Svg.Events
+import Colors
+
 import Plot exposing (..)
 import AreaChart exposing (..)
 import MultiAreaChart exposing (..)
@@ -27,6 +30,7 @@ type alias Model =
 
 type Msg
     = Toggle (Maybe String)
+    | HoveringChart
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -34,6 +38,9 @@ update msg model =
     case msg of
         Toggle id ->
             ( id, Cmd.none )
+
+        HoveringChart ->
+            ( model, Cmd.none )
 
 
 
@@ -105,6 +112,11 @@ viewTitle model title name codeString =
             ]
 
 
+data : List ( Float, Float )
+data =
+    [ ( 0, 8 ), ( 1, 13 ), ( 2, 14 ), ( 3, 12 ), ( 4, 11 ), ( 5, 16 ), ( 6, 22 ), ( 7, 32 ) ]
+
+
 view : Model -> Html Msg
 view model =
     div
@@ -127,6 +139,11 @@ view model =
                 , style [ ( "color", "#84868a" ) ]
                 ]
                 [ text "Github" ]
+            ]
+        , plot
+            [ size ( 600, 250 ), plotSvgAttrs [ Svg.Events.onMouseOver HoveringChart ] ]
+            [ area [ areaStyle [ ( "stroke", Colors.blueStroke ), ( "fill", Colors.blueFill ) ] ] data
+            , xAxis [ axisStyle [ ( "stroke", Colors.axisColor ) ] ]
             ]
         , viewTitle model "Simple Area Chart" "AreaChart" AreaChart.code
         , AreaChart.chart

@@ -4,6 +4,7 @@ module Plot
         , size
         , padding
         , plotStyle
+        , plotSvgAttrs
         , xAxis
         , yAxis
         , axisStyle
@@ -58,7 +59,7 @@ module Plot
 # Configuration
 
 ## Meta configuration
-@docs MetaAttr, size, padding, plotStyle
+@docs MetaAttr, size, padding, plotStyle, plotSvgAttrs
 
 ## Line configuration
 @docs LineAttr, lineStyle
@@ -131,23 +132,25 @@ type Element msg
 -- META CONFIG
 
 
-type alias MetaConfig =
+type alias MetaConfig msg =
     { size : ( Int, Int )
     , padding : ( Int, Int )
     , style : Style
+    , svgAttrs : List (Svg.Attribute msg)
     }
 
 
 {-| The type representing an a meta configuration.
 -}
-type alias MetaAttr =
-    MetaConfig -> MetaConfig
+type alias MetaAttr msg =
+    MetaConfig msg -> MetaConfig msg
 
 
 defaultMetaConfig =
     { size = ( 800, 500 )
     , padding = ( 0, 0 )
     , style = [ ( "padding", "30px" ), ( "stroke", "#000" ) ]
+    , svgAttrs = []
     }
 
 
@@ -157,7 +160,7 @@ defaultMetaConfig =
 
  Default: `( 0, 0 )`
 -}
-padding : ( Int, Int ) -> MetaConfig -> MetaConfig
+padding : ( Int, Int ) -> MetaConfig msg -> MetaConfig msg
 padding padding config =
     { config | padding = padding }
 
@@ -166,7 +169,7 @@ padding padding config =
 
  Default: `( 800, 500 )`
 -}
-size : ( Int, Int ) -> MetaConfig -> MetaConfig
+size : ( Int, Int ) -> MetaConfig msg -> MetaConfig msg
 size size config =
     { config | size = size }
 
@@ -175,12 +178,18 @@ size size config =
 
  Default: `[ ( "padding", "30px" ), ( "stroke", "#000" ) ]`
 -}
-plotStyle : Style -> MetaConfig -> MetaConfig
+plotStyle : Style -> MetaConfig msg -> MetaConfig msg
 plotStyle style config =
     { config | style = style ++ defaultMetaConfig.style }
 
 
-toMetaConfig : List MetaAttr -> MetaConfig
+{-| -}
+plotSvgAttrs : List (Svg.Attribute msg) -> MetaConfig msg -> MetaConfig msg
+plotSvgAttrs attrs config =
+    { config | svgAttrs = attrs }
+
+
+toMetaConfig : List (MetaAttr msg) -> MetaConfig msg
 toMetaConfig attrs =
     List.foldr (<|) defaultMetaConfig attrs
 
@@ -945,7 +954,7 @@ line attrs points =
  Pass your meta attributes and plot elements to this function and
  a svg plot will be returned!
 -}
-plot : List MetaAttr -> List (Element msg) -> Svg.Svg msg
+plot : List (MetaAttr msg) -> List (Element msg) -> Svg.Svg msg
 plot attr elements =
     Svg.Lazy.lazy2 parsePlot attr elements
 
@@ -954,7 +963,7 @@ plot attr elements =
 -- VIEW
 
 
-parsePlot : List MetaAttr -> List (Element msg) -> Svg.Svg msg
+parsePlot : List (MetaAttr msg) -> List (Element msg) -> Svg.Svg msg
 parsePlot attr elements =
     let
         metaConfig =
@@ -966,18 +975,19 @@ parsePlot attr elements =
         viewPlot metaConfig (viewElements plotProps elements)
 
 
-viewPlot : MetaConfig -> List (Svg.Svg msg) -> Svg.Svg msg
-viewPlot { size, style } children =
+viewPlot : MetaConfig msg -> List (Svg.Svg msg) -> Svg.Svg msg
+viewPlot { size, style, svgAttrs } children =
     let
         ( width, height ) =
             size
-    in
-        Svg.svg
+
+        attrs =
             [ Svg.Attributes.height (toString height)
             , Svg.Attributes.width (toString width)
             , Svg.Attributes.style (toStyle style)
-            ]
-            children
+            ] ++ svgAttrs
+    in
+        Svg.svg attrs children
 
 
 
@@ -1320,7 +1330,7 @@ toSvgCoordsY xScale yScale ( x, y ) =
     toSvgCoordsX xScale yScale ( y, x )
 
 
-getPlotProps : MetaConfig -> List (Element msg) -> PlotProps
+getPlotProps : MetaConfig msg -> List (Element msg) -> PlotProps
 getPlotProps { size, padding } elements =
     let
         ( xValues, yValues ) =
