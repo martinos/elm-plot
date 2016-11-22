@@ -1,9 +1,15 @@
-module Helpers exposing (..)
+module Plot.Helpers exposing (..)
 
 import Svg exposing (g)
 import Svg.Attributes exposing (transform, height, width, style, d, x, y, x1, x2, y1, y2)
 import String
 import Debug
+
+import Plot.Types as Types
+
+getInnerId : Types.PlotProps -> String
+getInnerId { id } =
+    id ++ "__inner"
 
 
 -- Calculate scales
