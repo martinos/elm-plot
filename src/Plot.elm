@@ -39,6 +39,9 @@ module Plot
         , gridMirrorTicks
         , area
         , areaStyle
+        , bars
+        , barsStyle
+        , barsMaxWidth
         , scatter
         , scatterStyle
         , scatterRadius
@@ -50,6 +53,7 @@ module Plot
         , LabelViewAttr
         , AxisAttr
         , AreaAttr
+        , BarsAttr
         , ScatterAttr
         , LineAttr
         , Point
@@ -62,7 +66,7 @@ module Plot
  It is insprired by the elm-html api, using the `element attrs children` pattern.
 
 # Elements
-@docs Element, plot, area, scatter, line, xAxis, yAxis, Point, Style
+@docs Element, plot, line, area, bars, scatter, xAxis, yAxis, Point, Style
 
 # Configuration
 
@@ -74,6 +78,9 @@ module Plot
 
 ## Area configuration
 @docs AreaAttr, areaStyle
+
+## Bars configuration
+@docs BarsAttr, barsStyle, barsMaxWidth
 
 ## Scatter configuration
 @docs ScatterAttr, scatterRadius, scatterStyle
@@ -138,6 +145,7 @@ type Element msg
     | Line LineConfig
     | Area AreaConfig
     | Scatter ScatterConfig
+    | Bars BarsConfig
 
 
 
@@ -943,7 +951,7 @@ type alias ScatterAttr =
     ScatterConfig -> ScatterConfig
 
 
-defaultScatterConfig : { style : List a, points : List b, radius : Float }
+defaultScatterConfig : ScatterConfig
 defaultScatterConfig =
     { style = []
     , points = []
@@ -1003,6 +1011,89 @@ scatter attrs points =
             List.foldr (<|) defaultScatterConfig attrs
     in
         Scatter { config | points = points }
+
+
+
+-- HISTOGRAM CONFIG
+
+
+type alias BarsConfig =
+    { style : Style
+    , points : List Point
+    , maxWidth : BarsWidth
+    }
+
+
+type BarsWidth
+    = AutoMaxWidth
+    | MaxWidth Float
+
+
+{-| The type representing an histogram configuration.
+-}
+type alias BarsAttr =
+    BarsConfig -> BarsConfig
+
+
+defaultBarsConfig : BarsConfig
+defaultBarsConfig =
+    { style = []
+    , points = []
+    , maxWidth = AutoMaxWidth
+    }
+
+
+{-| Add styles to your scatter series
+
+    main =
+        plot
+            []
+            [ bars
+                [ barsStyle
+                    [ ( "stroke", "deeppink" )
+                    , ( "opacity", "0.5" ) ]
+                    ]
+                ]
+                barsDataPoints
+            ]
+-}
+barsStyle : Style -> BarsConfig -> BarsConfig
+barsStyle style config =
+    { config | style = style }
+
+
+{-| Set a max width on your bars.
+
+    main =
+        plot
+            []
+            [ bars
+                [ barsStyle
+                    [ ( "stroke", "deeppink" )
+                    , ( "opacity", "0.5" ) ]
+                    ]
+                , barsMaxWidth 4
+                ]
+                barsDataPoints
+            ]
+-}
+barsMaxWidth : Int -> BarsConfig -> BarsConfig
+barsMaxWidth max config =
+    { config | maxWidth = MaxWidth <| toFloat max }
+
+
+{-| This returns a bars element resulting in a bars series rendered in your plot.
+
+    main =
+        plot [] [ bars []  [ ( 0, -2 ), ( 2, 0 ), ( 3, 1 ) ] ]
+-}
+bars : List BarsAttr -> List Point -> Element msg
+bars attrs points =
+    let
+        config =
+            List.foldr (<|) defaultBarsConfig attrs
+    in
+        Bars { config | points = points }
 
 
 
@@ -1200,6 +1291,9 @@ viewElement plotProps element views =
 
         Scatter config ->
             (viewScatter plotProps config) :: views
+
+        Bars config ->
+            (viewBars plotProps config) :: views
 
 
 
@@ -1420,6 +1514,10 @@ viewArea { toSvgCoords } { points, style } =
             []
 
 
+
+-- VIEW SCATTER
+
+
 viewScatter : PlotProps -> ScatterConfig -> Svg.Svg a
 viewScatter { toSvgCoords } { points, style, radius } =
     let
@@ -1432,13 +1530,66 @@ viewScatter { toSvgCoords } { points, style, radius } =
 
 
 toSvgCircle : Float -> Point -> Svg.Svg a
-toSvgCircle radius point =
+toSvgCircle radius ( x, y ) =
     Svg.circle
-        [ Svg.Attributes.cx (toString (Tuple.first point))
-        , Svg.Attributes.cy (toString (Tuple.second point))
+        [ Svg.Attributes.cx (toString x)
+        , Svg.Attributes.cy (toString y)
         , Svg.Attributes.r (toString radius)
         ]
         []
+
+
+
+
+-- VIEW BARS
+
+
+viewBars : PlotProps -> BarsConfig -> Svg.Svg a
+viewBars ({ toSvgCoords, scale } as plotProps) ({ points, style, maxWidth } as config) =
+    let
+        svgPoints =
+            List.map toSvgCoords points
+
+        (_, originY) =
+            toSvgCoords ( 0, 0 )
+
+        width =
+            toBarWidth scale.length scale.range config
+    in
+        Svg.g
+            [ Svg.Attributes.style (toStyle style) ]
+            (List.map (toBar width originY) svgPoints)
+
+
+toBar : Float -> Float -> Point -> Svg.Svg a
+toBar width originY ( x, y ) =
+    Svg.rect
+        [ Svg.Attributes.x (toString <| x - (width / 2) )
+        , Svg.Attributes.y (toString <| y)
+        , Svg.Attributes.width (toString width)
+        , Svg.Attributes.height (toString <| originY - y)
+        ]
+        []
+
+
+toBarWidth : Float -> Float -> BarsConfig -> Float
+toBarWidth length range { maxWidth, points } =
+    let
+        range =
+            List.map Tuple.first points
+
+        ( lowestX, highestX ) =
+            ( getLowest range, getHighest range )
+
+        widthAuto =
+            (length / ( highestX - lowestX ))
+    in
+        case maxWidth of
+            AutoMaxWidth ->
+                widthAuto
+
+            MaxWidth max ->
+                if widthAuto > max then max else widthAuto
 
 
 
@@ -1661,6 +1812,9 @@ collectPoints element allPoints =
             allPoints ++ points
 
         Scatter { points } ->
+            allPoints ++ points
+
+        Bars { points } ->
             allPoints ++ points
 
         Line { points } ->

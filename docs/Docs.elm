@@ -13,6 +13,7 @@ import GridChart exposing (..)
 import MultiLineChart exposing (..)
 import CustomTickChart exposing (..)
 import ComposedChart exposing (..)
+import BarsChart
 
 
 -- MODEL
@@ -137,6 +138,8 @@ view model =
         , ScatterChart.chart
         , viewTitle model "Line Chart" "MultiLineChart" MultiLineChart.code
         , MultiLineChart.chart
+        , viewTitle model "Bars Chart" "BarsChart" BarsChart.code
+        , BarsChart.chart
         , viewTitle model "Grid" "GridChart" GridChart.code
         , GridChart.chart
         , viewTitle model "Custom ticks and labels" "CustomTickChart" CustomTickChart.code
