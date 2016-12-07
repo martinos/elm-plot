@@ -41,9 +41,8 @@ data2 =
 view : State -> Svg.Svg (Interaction c)
 view state =
     plotInteractive
-        [ size Common.plotSize
-        , margin ( 10, 20, 40, 20 )
-        , domain ( Just 0, Nothing )
+        [ scaleX Common.scaleX
+        , scaleY Common.scaleY
         , id "PlotHint"
         ]
         [ line

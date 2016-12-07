@@ -1,14 +1,23 @@
 module Common exposing (..)
 
+import Plot exposing (..)
 
-plotSizeLarge : ( Int, Int )
-plotSizeLarge =
-    ( 800, 400 )
+scaleX : List ScaleAttribute
+scaleX =
+    [ length 380
+    , marginUpper 20
+    , marginLower 20
+    , rangeLower (min 0)
+    ]
 
 
-plotSize : ( Int, Int )
-plotSize =
-    ( 380, 300 )
+scaleY : List ScaleAttribute
+scaleY =
+    [ length 300
+    , marginUpper 40
+    , marginLower 10
+    , rangeLower (min 0)
+    ]
 
 
 axisColor : String

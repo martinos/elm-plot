@@ -1,6 +1,7 @@
 module Plot
     exposing
         ( Attribute
+        , ScaleAttribute
         , plot
         , plotInteractive
         , xAxis
@@ -15,12 +16,16 @@ module Plot
         , custom
         , classes
         , id
-        , margin
-        , padding
-        , size
         , style
-        , range
-        , domain
+        , scaleX
+        , scaleY
+        , rangeLower
+        , rangeUpper
+        , length
+        , marginLower
+        , marginUpper
+        , paddingLower
+        , paddingUpper
         , Element
         , initialState
         , update
@@ -37,13 +42,16 @@ module Plot
  It is insprired by the elm-html api, using the `element attrs children` pattern.
 
 # Definitions
-@docs Attribute, Element, Point, Style
+@docs Attribute, ScaleAttribute, Element, Point, Style
 
 # Elements
 @docs plot, plotInteractive, scatter, line, area, pile, xAxis, yAxis, hint, verticalGrid, horizontalGrid, custom
 
 # Styling and sizes
-@docs classes, id, margin, padding, size, style, range, domain
+@docs classes, id, style, scaleX, scaleY
+
+# Scaling and sizing
+@docs length, marginUpper, marginLower, paddingUpper, paddingLower, rangeUpper, rangeLower 
 
 # State
 @docs State, initialState, update, Interaction, getHoveredValue
@@ -111,27 +119,36 @@ type Element msg
 
 
 type alias Config =
-    { size : Oriented Float
-    , padding : ( Float, Float )
-    , margin : ( Float, Float, Float, Float )
-    , classes : List String
+    { classes : List String
     , style : Style
-    , domain : ( Maybe Float, Maybe Float )
-    , range : ( Maybe Float, Maybe Float )
+    , scaleConfig : Oriented ScaleConfig
     , id : String
     }
 
 
 defaultConfig : Config
 defaultConfig =
-    { size = Oriented 800 500
-    , padding = ( 0, 0 )
-    , margin = ( 0, 0, 0, 0 )
-    , classes = []
+    { classes = []
     , style = [ ( "padding", "0" ), ( "stroke", "#000" ) ]
-    , domain = ( Nothing, Nothing )
-    , range = ( Nothing, Nothing )
+    , scaleConfig = Oriented defaultScaleConfigX defaultScaleConfigY
     , id = "elm-plot"
+    }
+
+
+defaultScaleConfigX : ScaleConfig
+defaultScaleConfigX =
+    { length = 800
+    , padding = Edges 0 0
+    , margin = Edges 0 0
+    , restrictRange = EdgesAny identity identity
+    }
+
+
+defaultScaleConfigY : ScaleConfig
+defaultScaleConfigY =
+    { defaultScaleConfigX
+    | length = 500
+    , restrictRange = EdgesAny (min 0) identity
     }
 
 
@@ -140,15 +157,31 @@ type alias Attribute =
     Config -> Config
 
 
+{-| -}
+type alias ScaleAttribute =
+    ScaleConfig -> ScaleConfig
+
+
 {-| Adds padding to your plot, meaning extra space below
  and above the lowest and highest point in your plot.
  The unit is pixels and the format is `( bottom, top )`.
 
  Default: `( 0, 0 )`
 -}
-padding : ( Int, Int ) -> Attribute
-padding ( bottom, top ) config =
-    { config | padding = ( toFloat bottom, toFloat top ) }
+paddingUpper : Int -> ScaleAttribute
+paddingUpper upper ({ padding } as config) =
+    { config | padding = { padding | upper = toFloat upper } }
+
+
+{-| Adds padding to your plot, meaning extra space below
+ and above the lowest and highest point in your plot.
+ The unit is pixels and the format is `( bottom, top )`.
+
+ Default: `( 0, 0 )`
+-}
+paddingLower : Int -> ScaleAttribute
+paddingLower lower ({ padding } as config) =
+    { config | padding = { padding | lower = toFloat lower } }
 
 
 {-| Specify the size of your plot in pixels and in the format
@@ -156,20 +189,65 @@ padding ( bottom, top ) config =
 
  Default: `( 800, 500 )`
 -}
-size : ( Int, Int ) -> Attribute
-size ( width, height ) config =
-    { config | size = Oriented ( toFloat width ) ( toFloat height ) }
+length : Int -> ScaleAttribute
+length length config =
+    { config | length = toFloat length }
 
 
-{-| Specify margin around the plot. Useful when your ticks are outside the
- plot and you would like to add space to see them! Values are in pixels and
-the format is `( top, right, bottom, left )`.
+{-| Adds padding to your plot, meaning extra space below
+ and above the lowest and highest point in your plot.
+ The unit is pixels and the format is `( bottom, top )`.
 
- Default: `( 0, 0, 0, 0 )`
+ Default: `( 0, 0 )`
 -}
-margin : ( Int, Int, Int, Int ) -> Attribute
-margin ( t, r, b, l ) config =
-    { config | margin = ( toFloat t, toFloat r, toFloat b, toFloat l ) }
+marginUpper : Int -> ScaleAttribute
+marginUpper upper ({ margin } as config) =
+    { config | margin = { margin | upper = toFloat upper } }
+
+
+{-| Adds margin to your plot, meaning extra space below
+ and above the lowest and highest point in your plot.
+ The unit is pixels and the format is `( bottom, top )`.
+
+ Default: `( 0, 0 )`
+-}
+marginLower : Int -> ScaleAttribute
+marginLower lower ({ margin } as config) =
+    { config | margin = { margin | lower = toFloat lower } }
+
+
+{-| Adds padding to your plot, meaning extra space below
+ and above the lowest and highest point in your plot.
+ The unit is pixels and the format is `( bottom, top )`.
+
+ Default: `( 0, 0 )`
+-}
+rangeUpper : (Float -> Float) -> ScaleAttribute
+rangeUpper rangeConfig ({ restrictRange } as config) =
+    { config | restrictRange = { restrictRange | upper = rangeConfig } }
+
+
+{-| Adds range to your plot, meaning extra space below
+ and above the lowest and highest point in your plot.
+ The unit is pixels and the format is `( bottom, top )`.
+
+ Default: `( 0, 0 )`
+-}
+rangeLower : (Float -> Float) -> ScaleAttribute
+rangeLower rangeConfig ({ restrictRange } as config) =
+    { config | restrictRange = { restrictRange | lower = rangeConfig } }
+
+
+{-| -}
+scaleX : List ScaleAttribute -> Attribute
+scaleX attributes ({ scaleConfig } as config) =
+    { config | scaleConfig = { scaleConfig | x = List.foldl (<|) defaultScaleConfigX attributes } }
+
+
+{-| -}
+scaleY : List ScaleAttribute -> Attribute
+scaleY attributes ({ scaleConfig } as config) =
+    { config | scaleConfig = { scaleConfig | y = List.foldl (<|) defaultScaleConfigY attributes } }
 
 
 {-| Adds styles to the svg element.
@@ -195,25 +273,6 @@ classes classes config =
 id : String -> Attribute
 id id config =
     { config | id = id }
-
-
-{-| Specifically set the domain. The format is ( lowest, highest )
- and if left with a `Nothing` value, then it default to the edges of your series y-coordinates.
-
- **Note:** If you are using `padding` as well, the extra padding will still be
- added outside the domain.
--}
-domain : ( Maybe Float, Maybe Float ) -> Attribute
-domain domain config =
-    { config | domain = domain }
-
-
-{-| Specifically set the range. The format is ( lowest, highest )
- and if left with a `Nothing` value, then it default to the edges of your series x-coordinates.
--}
-range : ( Maybe Float, Maybe Float ) -> Attribute
-range range config =
-    { config | range = range }
 
 
 {-| -}
@@ -447,23 +506,23 @@ parsePlotInteractive config elements =
 
 
 viewPlotInteractive : Config -> Meta -> ( List (Svg (Interaction msg)), List (Html (Interaction msg)) ) -> Html (Interaction msg)
-viewPlotInteractive ({ size } as config) meta ( svgViews, htmlViews ) =
+viewPlotInteractive ({ scaleConfig } as config) meta ( svgViews, htmlViews ) =
     Html.div
         (plotAttributes config ++ plotAttributesInteraction meta)
-        (viewSvg size svgViews :: htmlViews)
+        (viewSvg scaleConfig svgViews :: htmlViews)
 
 
 viewPlot : Config -> Meta -> ( List (Svg msg), List (Html msg) ) -> Svg msg
-viewPlot ({ size } as config) meta ( svgViews, htmlViews ) =
+viewPlot ({ scaleConfig } as config) meta ( svgViews, htmlViews ) =
     Html.div
         (plotAttributes config)
-        (viewSvg size svgViews :: htmlViews)
+        (viewSvg scaleConfig svgViews :: htmlViews)
 
 
 plotAttributes : Config -> List (Html.Attribute msg)
-plotAttributes { size, id } =
+plotAttributes { scaleConfig, id } =
     [ Html.Attributes.class "elm-plot"
-    , Html.Attributes.style <| sizeStyle size
+    , Html.Attributes.style <| sizeStyle scaleConfig
     , Html.Attributes.id id
     ]
 
@@ -475,11 +534,11 @@ plotAttributesInteraction meta =
     ]
 
 
-viewSvg : Oriented Float -> List (Svg msg) -> Svg msg
+viewSvg : Oriented ScaleConfig -> List (Svg msg) -> Svg msg
 viewSvg { x, y } views =
     Svg.svg
-        [ Svg.Attributes.height (toString y)
-        , Svg.Attributes.width (toString x)
+        [ Svg.Attributes.height (toString y.length)
+        , Svg.Attributes.width (toString x.length)
         , Svg.Attributes.class "elm-plot__inner"
         ]
         views
@@ -493,9 +552,9 @@ getMousePosition meta =
         (Json.field "clientY" Json.float)
 
 
-sizeStyle : Oriented Float -> Style
+sizeStyle : Oriented ScaleConfig -> Style
 sizeStyle { x, y } =
-    [ ( "height", toPixels y ), ( "width", toPixels x ) ]
+    [ ( "height", toPixels y.length ), ( "width", toPixels x.length ) ]
 
 
 viewElements : Meta -> List (Element msg) -> ( List (Svg msg), List (Html msg) )
@@ -541,7 +600,7 @@ viewElement meta element ( svgViews, htmlViews ) =
 
 
 calculateMeta : Config -> List (Element msg) -> Meta
-calculateMeta ({ size, padding, margin, id, range, domain } as config) elements =
+calculateMeta ({ scaleConfig, id } as config) elements =
     let
         values =
             toValuesOriented elements
@@ -555,20 +614,17 @@ calculateMeta ({ size, padding, margin, id, range, domain } as config) elements 
         pileEdges =
             PileInternal.toPileEdges pileMetas
 
-        ( top, right, bottom, left ) =
-            margin
-
         xScale =
-            getScale size.x range ( left, right ) ( 0, 0 ) values.x pileEdges.x
+            getScale scaleConfig.x values.x pileEdges.x
 
         yScale =
-            getScale size.y domain ( top, bottom ) padding values.y pileEdges.y
+            getScale scaleConfig.y values.y pileEdges.y
 
         xTicks =
-            getLastGetTickValues axisConfigs.x xScale
+            getFirstGetTickValues axisConfigs.x xScale
 
         yTicks =
-            getLastGetTickValues axisConfigs.y yScale
+            getFirstGetTickValues axisConfigs.y yScale
     in
         { scale = Oriented xScale yScale
         , toSvgCoords = toSvgCoordsX xScale yScale
@@ -609,7 +665,6 @@ foldPoints element allPoints =
 
         _ ->
             allPoints
-
 
 
 flipMeta : Meta -> Meta
@@ -655,8 +710,8 @@ foldAxisConfigs element axisConfigs =
             axisConfigs
 
 
-getLastGetTickValues : List (AxisInternal.Config msg) -> Scale -> List Value
-getLastGetTickValues axisConfigs =
+getFirstGetTickValues : List (AxisInternal.Config msg) -> Scale -> List Value
+getFirstGetTickValues axisConfigs =
     List.head axisConfigs
         |> Maybe.withDefault AxisInternal.defaultConfigX
         |> .tickConfig

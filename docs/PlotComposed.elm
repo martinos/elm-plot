@@ -60,9 +60,8 @@ labelStyle =
 view : State -> Svg.Svg (Interaction c)
 view state =
     plotInteractive
-        [ size ( 800, 400 )
-        , padding ( 40, 40 )
-        , margin ( 15, 20, 40, 15 )
+        [ scaleX [ length 800 ]
+        , scaleY [ length 500 ]
         , id "PlotComposed"
         ]
         [ horizontalGrid

@@ -4,43 +4,52 @@ import Internal.Types exposing (..)
 import Internal.Stuff exposing (..)
 
 
-getScale : Float -> ( Maybe Value, Maybe Value ) -> ( Value, Value ) -> ( Value, Value ) -> List Value -> Maybe Edges -> Scale
-getScale lengthTotal ( forcedLowest, forcedHighest ) ( offsetLeft, offsetRight ) ( paddingBottomPx, paddingTopPx ) values pileEdges =
+type alias ScaleConfig =
+    { length : Float
+    , padding : Edges
+    , margin : Edges
+    , restrictRange : EdgesAny (Float -> Float)
+    }
+
+
+toLengthInner : ScaleConfig -> Float
+toLengthInner { length, margin } =
+    length - margin.lower - margin.upper
+
+
+getScale : ScaleConfig -> List Value -> Maybe Edges -> Scale
+getScale ({ length, padding, margin, restrictRange } as config) values pileEdges =
     let
-        length =
-            lengthTotal - offsetLeft - offsetRight
+        lengthInner =
+            toLengthInner config
 
         lowest =
-            getScaleLowest forcedLowest values pileEdges
+            getScaleLowest restrictRange.lower values pileEdges
 
         highest =
-            getScaleHighest forcedHighest values pileEdges
+            getScaleHighest restrictRange.upper values pileEdges
 
         range =
             getRange lowest highest
 
         paddingTop =
-            pixelsToValue length range paddingTopPx
+            pixelsToValue lengthInner range padding.upper
 
         paddingBottom =
-            pixelsToValue length range paddingBottomPx
+            pixelsToValue lengthInner range padding.lower
     in
         { lowest = lowest - paddingBottom
         , highest = highest + paddingTop
         , range = range + paddingBottom + paddingTop
-        , length = length
-        , offset = offsetLeft
-        }
+        , length = lengthInner
+        , offset = margin.lower
+        } |> Debug.log "here"
 
 
-getScaleLowest : Maybe Value -> List Value -> Maybe Edges -> Value
-getScaleLowest forcedLowest values pileEdges =
-    case forcedLowest of
-        Just value ->
-            value
-
-        Nothing ->
-            getAutoLowest pileEdges (getLowest values)
+getScaleLowest : (Float -> Float) -> List Value -> Maybe Edges -> Value
+getScaleLowest restrictRange values pileEdges =
+    getAutoLowest pileEdges (getLowest values)
+        |> restrictRange
 
 
 getAutoLowest : Maybe Edges -> Value -> Value
@@ -53,14 +62,10 @@ getAutoLowest pileEdges lowestFromValues =
             lowestFromValues
 
 
-getScaleHighest : Maybe Value -> List Value -> Maybe Edges -> Value
-getScaleHighest forcedHighest values pileEdges =
-    case forcedHighest of
-        Just value ->
-            value
-
-        Nothing ->
-            getAutoHighest pileEdges (getHighest values)
+getScaleHighest : (Float -> Float) -> List Value -> Maybe Edges -> Value
+getScaleHighest restrictRange values pileEdges =
+    getAutoHighest pileEdges (getHighest values)
+        |> restrictRange
 
 
 getAutoHighest : Maybe Edges -> Value -> Value
